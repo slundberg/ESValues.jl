@@ -15,12 +15,14 @@ fnull,φ,φVar = esvalues(x, f, X, nsamples=10)
 @test fnull == 0
 @test norm(φ .- x) < 1e-5
 @test norm(φVar) < 1e-5
+@test length(φ) == P
+@test length(φVar) == P
 
 # X and x are identical
 srand(1)
 X = randn(P, 1)
 fnull,φ,φVar = esvalues(x, f, X, nsamples=10)
-#@test fnull == 0
+@test fnull == sum(X)
 @test norm(X + φ .- x) < 1e-5
 @test norm(φVar) < 1e-5
 
@@ -51,9 +53,6 @@ function rawShapley(x, f, X, ind, g=identity)
         y1 = g(mean(f(tmp)))
         tmp[ind,:] = x[ind]
         y2 = g(mean(f(tmp)))
-        if g != identity
-            println(w, " ", y2, " ", y1, " ", s)
-        end
         val += w*(y2-y1)
         sumw += w
     end
@@ -110,29 +109,33 @@ for i in 1:10
 end
 
 # non-linear logistic function with logit link
-# X = randn(P, 1)
-# x = randn(P)
-# f = x->logistic(sum(x, 1))
-# fnull,φ,φVar = esvalues(x, f, X, :logit, nsamples=1000000)
-# for i in 1:length(φ)
-#     sv = rawShapley(x, f, X, i, logit)
-#     println(sv, " ", x[i])
-#     @test abs(φ[i] - rawShapley(x, f, X, i, logit)) < 1e-5
-# end
+X = randn(P, 1)
+x = randn(P)
+f = x->logistic(sum(x, 1))
+fnull,φ,φVar = esvalues(x, f, X, logit, nsamples=1000000)
+for i in 1:length(φ)
+    sv = rawShapley(x, f, X, i, logit)
+    @test abs(φ[i] - rawShapley(x, f, X, i, logit)) < 1e-5
+end
+@test sum(abs(φVar)) < 1e-12 # we have exhausted the sample space so there should be no uncertainty
 
 # non-linear logistic function with logit link and random background
 P = 2
-X = randn(P, 2)
+X = randn(P, 10)
 x = randn(P)
 f = x->logistic(sum(x, 1))
-fnull,φ,φVar = esvalues(x, f, X, :logit, nsamples=1000000)
+fnull,φ,φVar = esvalues(x, f, X, logit, nsamples=1000000)
 φRaw = [rawShapley(x, f, X, i, logit) for i in 1:length(φ)]
-println(φ)
-println(φRaw)
-println(φ - φRaw)
 @test norm(φ - φRaw) < 1e-5
 
-#     sv = rawShapley(x, f, X, i, logit)
-#     println(sv, " ", x[i])
-#     @test abs(φ[i] - rawShapley(x, f, X, i, logit)) < 1e-5
-# end
+# test many totally arbitrary functions with logit link
+P = 10
+X = zeros(P, 2)
+x = ones(P,1)
+for i in 1:10
+    model = gen_model(P)
+    f = x->[logistic(model[find(x[:,i])]) for i in 1:size(x)[2]]
+    fnull,φ,φVar = esvalues(x, f, X, logit, nsamples=1000000)
+    phiRaw = [rawShapley(x, f, X, j, logit) for j in 1:P]
+    @test norm(φ .- phiRaw) < 1e-6
+end
