@@ -144,8 +144,15 @@ function addsample!(e::ESValuesEstimator, x, m, w)
     offset = e.nsamplesAdded * e.N
     e.nsamplesAdded += 1
     for i in 1:e.N
-        e.data[m .== 1,offset+i] = x[m .== 1]
-        e.data[m .== 0,offset+i] = e.X[m .== 0,i]
+        for j in 1:e.M
+            for k in e.featureGroups[j]
+                if m[j] == 1.0
+                    e.data[k,offset+i] = x[k]
+                else
+                    e.data[k,offset+i] = e.X[k,i]
+                end
+            end
+        end
     end
     e.maskMatrix[:,e.nsamplesAdded] = m[1:end-1] - m[end]
     e.lastMask[e.nsamplesAdded] = m[end]
@@ -188,13 +195,8 @@ function solve!(e::ESValuesEstimator)
 
     # a finite sample adjustment based on how much of the weight is left in the sample space
     fractionWeightLeft = 1 - sum(e.kernelWeights)/sum([(e.M-1)/(s*(e.M-s)) for s in 1:e.M-1])
-    
-    φ,φVar*fractionWeightLeft
-end
 
-"This is a numerical estimate of the total weight of the Shapley kernel"
-function estimate_sum(n)
-    -0.024327084804037863 + -0.022579411113938082*n + 0.02669437928278143*log(1.0098342488714886, 0.06743589462061919 + 0.7010711991103684*n)
+    φ,φVar*fractionWeightLeft
 end
 
 "Identify which feature groups vary."

@@ -39,8 +39,12 @@ fnull,φ,φVar = esvalues(x, f, X, nsamples=10)
 @test norm(X + φ .- x) < 1e-5
 @test norm(φVar) < 1e-5
 
-function rawShapley(x, f, X, ind, g=identity)
-    M = length(x)
+function rawShapley(x, f, X, ind, g=identity; featureGroups=nothing)
+
+    featureGroups != nothing || (featureGroups = Array{Int64,1}[Int64[i] for i in 1:size(X)[1]])
+    featureGroups = convert(Array{Array{Int64,1},1}, featureGroups)
+
+    M = length(featureGroups)
     val = 0.0
     sumw = 0.0
     for s in subsets(setdiff(1:M, ind))
@@ -48,10 +52,18 @@ function rawShapley(x, f, X, ind, g=identity)
         w = factorial(S)*factorial(M - S - 1)/factorial(M)
         tmp = copy(X)
         for i in 1:size(X)[2]
-            tmp[s,i] = x[s]
+            for j in s
+                for k in featureGroups[j]
+                    tmp[k,i] = x[k]
+                end
+            end
         end
         y1 = g(mean(f(tmp)))
-        tmp[ind,:] = x[ind]
+        for i in 1:size(X)[2]
+            for k in featureGroups[ind]
+                tmp[k,i] = x[k]
+            end
+        end
         y2 = g(mean(f(tmp)))
         val += w*(y2-y1)
         sumw += w
@@ -59,6 +71,20 @@ function rawShapley(x, f, X, ind, g=identity)
     @assert abs(sumw - 1.0) < 1e-6
     val
 end
+
+# check brute force computation of groups
+X = randn(P, 4)
+f = x->sum(x, 1)
+groups = [[1,2],[3],[4],[5]]
+@test abs(rawShapley(x, f, X, 1) + rawShapley(x, f, X, 2) - rawShapley(x, f, X, 1, featureGroups=groups)) < 1e-5
+
+# check computation of groups
+X = randn(P, 4)
+f = x->sum(x, 1)
+groups = [[1,2],[3],[4],[5]]
+fnull,φ,φVar = esvalues(x, f, X, nsamples=10)
+fnull,φg,φVar = esvalues(x, f, X, featureGroups=groups, nsamples=8)
+@test abs(φ[1] + φ[2] - φg[1]) < 1e-5
 
 # check against brute force computation
 X = randn(P, 4)
@@ -87,6 +113,15 @@ f = x->logistic(sum(x, 1))
 fnull,φ,φVar = esvalues(x, f, X, nsamples=10000)
 for i in 1:length(φ)
     @test abs(φ[i] - rawShapley(x, f, X, i)) < 1e-5
+end
+
+# non-linear logistic function with groups
+f = x->logistic(sum(x, 1))
+groups = [[1,2],[3],[4],[5]]
+fnull,φ,φVar = esvalues(x, f, X, featureGroups=groups, nsamples=10000)
+φRaw = [rawShapley(x, f, X, i, featureGroups=groups) for i in 1:length(φ)]
+for i in 1:length(φ)
+    @test abs(φ[i] - φRaw[i]) < 1e-5
 end
 
 # test many totally arbitrary functions
@@ -137,5 +172,18 @@ for i in 1:10
     f = x->[logistic(model[find(x[:,i])]) for i in 1:size(x)[2]]
     fnull,φ,φVar = esvalues(x, f, X, logit, nsamples=1000000)
     phiRaw = [rawShapley(x, f, X, j, logit) for j in 1:P]
+    @test norm(φ .- phiRaw) < 1e-6
+end
+
+# test arbitrary functions with logit link and feature groups
+P = 10
+X = zeros(P, 2)
+x = ones(P,1)
+groups = [[1,2],[3],[4],[5,6],[7,8,9,10]]
+for i in 1:3
+    model = gen_model(P)
+    f = x->[logistic(model[find(x[:,i])]) for i in 1:size(x)[2]]
+    fnull,φ,φVar = esvalues(x, f, X, logit, nsamples=1000000, featureGroups=groups)
+    phiRaw = [rawShapley(x, f, X, j, logit, featureGroups=groups) for j in 1:length(groups)]
     @test norm(φ .- phiRaw) < 1e-6
 end
