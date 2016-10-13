@@ -51,9 +51,21 @@ function esvalues(e::ESValuesEstimator, x)
     e.varyingFeatureGroups = e.featureGroups[e.varyingInds]
     e.M = length(e.varyingFeatureGroups)
 
+    # find f(x) and E_x[f(x)]
+    e.fx = e.f(x)[1]
+    e.fnull = mean(e.f(e.X))
+
     # if no features vary then there no feature has an effect
     if e.M == 0
-        return e.f(x)[1],zeros(e.P),zeros(e.P)
+        return e.fx,zeros(e.P),zeros(e.P)
+
+    # if only one feature varies then it has all the effect
+    elseif e.M == 1
+        fx = mean(e.f(x))
+        fnull = mean(e.f(e.X))
+        φ = zeros(e.P)
+        φ[e.varyingInds[1]] = e.link(e.fx) - e.link(e.fnull)
+        return e.fnull,φ,zeros(e.P)
     end
 
     # pick a reasonable number of samples if the user didn't specify how many they wanted
@@ -65,16 +77,8 @@ function esvalues(e::ESValuesEstimator, x)
     end
     @assert e.nsamples >= min(2*e.M, 2^e.M-2) "'nsamples' must be at least 2 times the number of varying feature groups!"
 
-    # find f(x) and E_x[f(x)]
-    allocate!(e)
-    addsample!(e, x, ones(e.M), 1.0)
-    addsample!(e, x, zeros(e.M), 1.0)
-    run!(e)
-    e.fx = e.ey[1]
-    e.fnull = e.ey[2]
-    reset!(e)
-
     # add the singleton samples and then estimate the variance of each ES value estimate
+    allocate!(e)
     for (m,w) in take(drop(eskernelsubsets(collect(1:e.M), ones(e.M)), 2), 2*e.M)
         addsample!(e, x, m, w)
     end
@@ -89,7 +93,13 @@ function esvalues(e::ESValuesEstimator, x)
         addsample!(e, x, m, w)
     end
     run!(e)
-    φ,φVar = solve!(e)
+    vφ,vφVar = solve!(e)
+
+    # expand the ES values vector to contain the non-varying features as well
+    φ = zeros(length(e.featureGroups))
+    φ[e.varyingInds] = vφ
+    φVar = zeros(length(e.featureGroups))
+    φVar[e.varyingInds] = vφVar
 
     # return the Shapley values along with variances of the estimates
     e.fnull,φ,φVar
@@ -145,7 +155,7 @@ function addsample!(e::ESValuesEstimator, x, m, w)
     e.nsamplesAdded += 1
     for i in 1:e.N
         for j in 1:e.M
-            for k in e.featureGroups[j]
+            for k in e.varyingFeatureGroups[j]
                 if m[j] == 1.0
                     e.data[k,offset+i] = x[k]
                 else

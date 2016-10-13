@@ -26,9 +26,19 @@ fnull,φ,φVar = esvalues(x, f, X, nsamples=10)
 @test norm(X + φ .- x) < 1e-5
 @test norm(φVar) < 1e-5
 
+# X and x are identical
+srand(1)
+x = zeros(P,1)
+x[1,1] = 1
+X = zeros(P,1)
+fnull,φ,φVar = esvalues(x, f, X, nsamples=8)
+@test fnull == sum(X)
+@test norm(X + φ .- x) < 1e-5
+@test norm(φVar) < 1e-5
+
 # non-zero reference distribution
 X = ones(P, 1)
-fnull,φ,φVar = esvalues(x, f, X, nsamples=10)
+fnull,φ,φVar = esvalues(x, f, X, nsamples=8000)
 @test fnull == 5
 @test norm(X + φ .- x) < 1e-5
 @test norm(φVar) < 1e-5
