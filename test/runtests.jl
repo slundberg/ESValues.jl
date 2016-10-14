@@ -28,6 +28,15 @@ groups = [[1,2],[3],[4],[5]]
 fnull,φg,φVar = esvalues(x, f, X, featureGroups=groups, nsamples=8)
 @test length(φg) == 4
 
+# check computation of groups when nothing varies
+X = ones(P, 4)
+x = ones(P, 1)
+x[1,1] = 0
+f = x->sum(x, 1)
+groups = [[1,2],[3],[4],[5]]
+fnull,φg,φVar = esvalues(x, f, X, featureGroups=groups, nsamples=8)
+@test length(φg) == 4
+
 # make sure things work when only two features vary
 x = ones(P, 1)
 x[1:2,1] = 0

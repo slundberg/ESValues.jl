@@ -63,9 +63,9 @@ function esvalues(e::ESValuesEstimator, x)
     elseif e.M == 1
         fx = mean(e.f(x))
         fnull = mean(e.f(e.X))
-        φ = zeros(e.P)
+        φ = zeros(length(e.featureGroups))
         φ[e.varyingInds[1]] = e.link(e.fx) - e.link(e.fnull)
-        return e.fnull,φ,zeros(e.P)
+        return e.fnull,φ,zeros(length(e.featureGroups))
     end
 
     # pick a reasonable number of samples if the user didn't specify how many they wanted
