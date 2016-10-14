@@ -77,25 +77,31 @@ function esvalues(e::ESValuesEstimator, x)
     end
     @assert e.nsamples >= min(2*e.M, 2^e.M-2) "'nsamples' must be at least 2 times the number of varying feature groups!"
 
-    # add the singleton samples and then estimate the variance of each ES value estimate
+    # add the singleton samples
     allocate!(e)
     for (m,w) in take(drop(eskernelsubsets(collect(1:e.M), ones(e.M)), 2), 2*e.M)
         addsample!(e, x, m, w)
     end
     run!(e)
-    variances = zeros(e.M)
-    for i in 1:2:2*e.M
-        variances[div(i+1,2)] = var([e.y[i] - e.fnull, e.fx - e.y[i+1]])
+
+    # if there might be more samples then enumarate them
+    if length(e.y) >= 2*e.M
+
+        # estimate the variance of each ES value estimate
+        variances = zeros(e.M)
+        for i in 1:2:2*e.M
+            variances[div(i+1,2)] = var([e.y[i] - e.fnull, e.fx - e.y[i+1]])
+        end
+
+        # now add the rest of the samples giving priority to ES values with high estimated variance
+        for (m,w) in take(drop(eskernelsubsets(collect(1:e.M), variances), 2*e.M+2), e.nsamples-(2*e.M))
+            addsample!(e, x, m, w)
+        end
+        run!(e)
     end
 
-    # now add the rest of the samples giving priority to ES values with high estimated variance
-    for (m,w) in take(drop(eskernelsubsets(collect(1:e.M), variances), 2*e.M+2), e.nsamples-(2*e.M))
-        addsample!(e, x, m, w)
-    end
-    run!(e)
+    # solve then expand the ES values vector to contain the non-varying features as well
     vφ,vφVar = solve!(e)
-
-    # expand the ES values vector to contain the non-varying features as well
     φ = zeros(length(e.featureGroups))
     φ[e.varyingInds] = vφ
     φVar = zeros(length(e.featureGroups))

@@ -5,6 +5,8 @@ using StatsBase
 
 include("iterators.jl")
 
+
+
 # basic test
 srand(1)
 P = 5
@@ -17,6 +19,15 @@ fnull,φ,φVar = esvalues(x, f, X, nsamples=10)
 @test norm(φVar) < 1e-5
 @test length(φ) == P
 @test length(φVar) == P
+
+# make sure things work when only two features vary
+x = ones(P, 1)
+x[1:2,1] = 0
+X = ones(P, 1)
+fnull,φ,φVar = esvalues(x, f, X, nsamples=8000)
+@test fnull == 5
+@test norm(X + φ .- x) < 1e-5
+@test norm(φVar) < 1e-5
 
 # X and x are identical
 srand(1)
@@ -197,3 +208,7 @@ for i in 1:3
     phiRaw = [rawShapley(x, f, X, j, logit, featureGroups=groups) for j in 1:length(groups)]
     @test norm(φ .- phiRaw) < 1e-6
 end
+
+# problem case from working with the UCI adult census dataset
+x = [37.0 0.0 0.0 1.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 14.0 0.0 1.0 0.0 0.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 40.0 1.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0]
+X = [37.0 0.0 0.0 1.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 10.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 40.0 1.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0]
