@@ -57,7 +57,7 @@ function esvalues(e::ESValuesEstimator, x)
 
     # if no features vary then there no feature has an effect
     if e.M == 0
-        return e.fx,zeros(e.P),zeros(e.P)
+        return e.fx,zeros(length(e.featureGroups)),zeros(length(e.featureGroups))
 
     # if only one feature varies then it has all the effect
     elseif e.M == 1
