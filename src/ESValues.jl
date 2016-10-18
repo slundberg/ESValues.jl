@@ -72,7 +72,7 @@ function esvalues(e::ESValuesEstimator, x)
     if e.nsamples == 0
         e.nsamples = 2*e.M+1000
     end
-    if e.nsamples > 2^e.M-2
+    if e.M <= 30 && e.nsamples > 2^e.M-2
         e.nsamples = 2^e.M-2
     end
     @assert e.nsamples >= min(2*e.M, 2^e.M-2) "'nsamples' must be at least 2 times the number of varying feature groups!"
