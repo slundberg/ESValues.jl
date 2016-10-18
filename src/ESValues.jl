@@ -176,7 +176,7 @@ function addsample!(e::ESValuesEstimator, x, m, w)
 end
 
 function run!(e::ESValuesEstimator)
-    e.y[:] = e.f(e.data)
+    e.y[e.nsamplesRun*e.N+1:e.nsamplesAdded*e.N] = e.f(e.data[:,e.nsamplesRun*e.N+1:e.nsamplesAdded*e.N])
 
     # find the expected value of each output
     for i in e.nsamplesRun+1:e.nsamplesAdded

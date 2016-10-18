@@ -233,4 +233,5 @@ for i in 1:3
     fnull,φ,φVar = esvalues(x, f, X, logit, nsamples=1000000, featureGroups=groups)
     phiRaw = [rawShapley(x, f, X, j, logit, featureGroups=groups) for j in 1:length(groups)]
     @test norm(φ .- phiRaw) < 1e-6
+    @test abs(logistic(logit(fnull)+sum(φ)) - f(x)[1]) < 1e-6
 end
