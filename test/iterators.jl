@@ -53,7 +53,7 @@ members = [4.19897,0.0835427,0.0452934,1.77052,0.0945746,4.88804,0.135961]
 test_subsets(members, sum, ESValues.orderedsubsets(members, sum, :ascending), :ascending)
 
 
-# test orderedsubsets using a value that rejects subsets larger than a given value
+# test eskernelsubsets using a value that rejects subsets larger than a given value
 members = collect(1:P)
 variances = [4.19897,0.0835427,0.0452934,1.77052,0.0945746,4.88804,0.135961]
 function subsetValue2(x)

@@ -53,7 +53,7 @@ function esvalues(e::ESValuesEstimator, x)
 
     # find f(x) and E_x[f(x)]
     e.fx = e.f(x)[1]
-    e.fnull = mean(e.f(e.X))
+    e.fnull = sum(vec(e.f(e.X)) .* e.weights)
 
     # if no features vary then there no feature has an effect
     if e.M == 0
@@ -62,7 +62,7 @@ function esvalues(e::ESValuesEstimator, x)
     # if only one feature varies then it has all the effect
     elseif e.M == 1
         fx = mean(e.f(x))
-        fnull = mean(e.f(e.X))
+        fnull = sum(vec(e.f(e.X)) .* e.weights)
         φ = zeros(length(e.featureGroups))
         φ[e.varyingInds[1]] = e.link(e.fx) - e.link(e.fnull)
         return e.fnull,φ,zeros(length(e.featureGroups))
@@ -177,24 +177,20 @@ end
 
 function run!(e::ESValuesEstimator)
     e.y[e.nsamplesRun*e.N+1:e.nsamplesAdded*e.N] = e.f(e.data[:,e.nsamplesRun*e.N+1:e.nsamplesAdded*e.N])
-
+    
     # find the expected value of each output
     for i in e.nsamplesRun+1:e.nsamplesAdded
         eyVal = 0.0
         for j in 1:e.N
-            eyVal += e.y[(i-1)*e.N + j]
+            eyVal += e.y[(i-1)*e.N + j] * e.weights[j]
         end
-        e.ey[i] = eyVal/e.N
+        e.ey[i] = eyVal
         e.nsamplesRun += 1
     end
 end
 
-function reset!(e::ESValuesEstimator)
-    e.nsamplesAdded = 0
-    e.nsamplesRun = 0
-end
-
 function solve!(e::ESValuesEstimator)
+
     # adjust the y value according to the constraints for the offset and sum
     eyAdj = e.link.(e.ey) .- e.lastMask*(e.link(e.fx) - e.link(e.fnull)) - e.link(e.fnull)
 

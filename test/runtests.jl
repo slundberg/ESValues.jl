@@ -8,6 +8,18 @@ include("iterators.jl")
 
 
 # basic test
+P = 5
+X = zeros(P, 1)
+x = ones(P,1)#randn(P, 1)
+f = x->sum(x, 1)
+fnull,φ,φVar = esvalues(x, f, X, nsamples=10)
+@test fnull == 0
+@test norm(φ .- x) < 1e-5
+@test norm(φVar) < 1e-5
+@test length(φ) == P
+@test length(φVar) == P
+
+# basic test rand
 srand(1)
 P = 5
 X = zeros(P, 1)
@@ -55,6 +67,17 @@ fnull,φ,φVar = esvalues(x, f, X, nsamples=8000)
 @test norm(X + φ .- x) < 1e-5
 @test norm(φVar) < 1e-5
 
+# make sure things work when only two features vary with weights
+P = 5
+x = ones(P, 1)
+x[1:2,1] = 0
+X = ones(P, 2)
+X[:,2] = 2
+weights = [1., 2.]
+fnull,φ,φVar = esvalues(x, f, X, nsamples=8000, weights=weights)
+@test abs(fnull - (5+10+10)/3) < 1e-6
+@test norm(φVar) < 1e-5
+
 # X and x are identical
 srand(1)
 X = randn(P, 1)
@@ -86,8 +109,10 @@ fnull,φ,φVar = esvalues(x, f, X, nsamples=10)
 @test norm(X + φ .- x) < 1e-5
 @test norm(φVar) < 1e-5
 
-function rawShapley(x, f, X, ind, g=identity; featureGroups=nothing)
+function rawShapley(x, f, X, ind, g=identity; weights=nothing, featureGroups=nothing)
 
+    weights != nothing || (weights = ones(size(X)[2]))
+    weights ./= sum(weights)
     featureGroups != nothing || (featureGroups = Array{Int64,1}[Int64[i] for i in 1:size(X)[1]])
     featureGroups = convert(Array{Array{Int64,1},1}, featureGroups)
 
@@ -105,13 +130,13 @@ function rawShapley(x, f, X, ind, g=identity; featureGroups=nothing)
                 end
             end
         end
-        y1 = g(mean(f(tmp)))
+        y1 = g(sum(vec(f(tmp)) .* weights))
         for i in 1:size(X)[2]
             for k in featureGroups[ind]
                 tmp[k,i] = x[k]
             end
         end
-        y2 = g(mean(f(tmp)))
+        y2 = g(sum(vec(f(tmp)) .* weights))
         val += w*(y2-y1)
         sumw += w
     end
@@ -176,6 +201,16 @@ f = x->logistic(sum(x, 1))
 groups = [[1,2],[3],[4],[5]]
 fnull,φ,φVar = esvalues(x, f, X, featureGroups=groups, nsamples=10000)
 φRaw = [rawShapley(x, f, X, i, featureGroups=groups) for i in 1:length(φ)]
+for i in 1:length(φ)
+    @test abs(φ[i] - φRaw[i]) < 1e-5
+end
+
+# non-linear logistic function with groups
+f = x->logistic(sum(x, 1))
+groups = [[1,2],[3],[4],[5]]
+weights = randn(4)
+fnull,φ,φVar = esvalues(x, f, X, featureGroups=groups, weights=weights, nsamples=10000)
+φRaw = [rawShapley(x, f, X, i, featureGroups=groups, weights=weights) for i in 1:length(φ)]
 for i in 1:length(φ)
     @test abs(φ[i] - φRaw[i]) < 1e-5
 end
